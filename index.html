@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>距离观察器 | Distance Observer</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="canvas"></canvas>
+
+    <!-- 控制面板 -->
+    <div class="controls">
+      <div class="hint">
+        滚轮缩放 | 鼠标移动观察 | 点击添加新星辰
+      </div>
+      <div class="info">
+        <span id="distance-info">观察距离: 50</span>
+        <span id="star-count">星辰数量: 0</span>
+      </div>
+    </div>
+
+    <!-- 欢迎提示 -->
+    <div class="welcome" id="welcome">
+      <h1>距离观察器</h1>
+      <p>保持距离，观察但不抓取</p>
+      <p class="sub">内容如星辰般漂浮，永远在视野中，但保持一定距离</p>
+      <button id="start-btn">开始观察</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
