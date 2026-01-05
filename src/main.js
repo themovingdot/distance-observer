@@ -17,8 +17,22 @@ class DistanceObserver {
     this.minDistance = 20;
     this.maxDistance = 150;
 
+    // 场景旋转（通过左右滚动控制）
+    this.sceneRotation = 0;
+    this.targetSceneRotation = 0;
+
     // 星辰集合
     this.stars = [];
+
+    // Raycaster 用于检测点击
+    this.raycaster = new THREE.Raycaster();
+    this.mouseClick = new THREE.Vector2();
+
+    // 特写模式
+    this.focusedStar = null;
+    this.isFocused = false;
+    this.originalCameraPos = new THREE.Vector3();
+    this.focusedCameraPos = new THREE.Vector3();
 
     this.init();
     this.setupEventListeners();
@@ -148,22 +162,54 @@ class DistanceObserver {
       this.targetCameraPos.y = this.mouse.y * 5;
     });
 
-    // 滚轮缩放 - 改变观察距离
+    // 增强滚轮控制 - 上下缩放，左右旋转
     window.addEventListener('wheel', (e) => {
       e.preventDefault();
 
-      const delta = e.deltaY * 0.05;
-      this.observeDistance += delta;
-      this.observeDistance = Math.max(this.minDistance,
-                                       Math.min(this.maxDistance, this.observeDistance));
+      // 垂直滚动 - 控制观察距离（zoom）
+      if (Math.abs(e.deltaY) > 0) {
+        const delta = e.deltaY * 0.05;
+        this.observeDistance += delta;
+        this.observeDistance = Math.max(this.minDistance,
+                                         Math.min(this.maxDistance, this.observeDistance));
+        this.updateDistanceInfo();
+      }
 
-      this.updateDistanceInfo();
+      // 水平滚动 - 控制场景旋转
+      if (Math.abs(e.deltaX) > 0) {
+        this.targetSceneRotation -= e.deltaX * 0.002;
+      }
     }, { passive: false });
 
-    // 点击添加新星辰
+    // 点击交互 - 特写查看星辰或添加新星辰
     this.canvas.addEventListener('click', (e) => {
-      const randomInsight = sampleInsights[Math.floor(Math.random() * sampleInsights.length)];
-      this.addInsightStar(randomInsight);
+      // 计算鼠标在标准化设备坐标系中的位置
+      this.mouseClick.x = (e.clientX / window.innerWidth) * 2 - 1;
+      this.mouseClick.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      // 使用raycaster检测点击
+      this.raycaster.setFromCamera(this.mouseClick, this.camera);
+
+      // 创建可交互对象数组（所有星辰的光球）
+      const intersectableObjects = this.stars.map(star => star.glowSphere);
+      const intersects = this.raycaster.intersectObjects(intersectableObjects);
+
+      if (intersects.length > 0) {
+        // 点击到了星辰 - 进入特写模式
+        const clickedSphere = intersects[0].object;
+        const clickedStar = this.stars.find(star => star.glowSphere === clickedSphere);
+
+        if (clickedStar) {
+          this.focusOnStar(clickedStar);
+        }
+      } else if (this.isFocused) {
+        // 在特写模式下点击空白处 - 退出特写
+        this.exitFocus();
+      } else {
+        // 点击空白处 - 添加新星辰
+        const randomInsight = sampleInsights[Math.floor(Math.random() * sampleInsights.length)];
+        this.addInsightStar(randomInsight);
+      }
     });
 
     // 窗口大小调整
@@ -190,28 +236,94 @@ class DistanceObserver {
     this.starCount.textContent = `星辰数量: ${this.stars.length}`;
   }
 
+  focusOnStar(star) {
+    if (this.isFocused && this.focusedStar === star) {
+      // 已经聚焦在这个星辰上，退出特写
+      this.exitFocus();
+      return;
+    }
+
+    this.isFocused = true;
+    this.focusedStar = star;
+
+    // 保存当前相机位置
+    this.originalCameraPos.copy(this.camera.position);
+
+    // 计算特写位置（在星辰前方15个单位）
+    const starWorldPos = new THREE.Vector3();
+    star.group.getWorldPosition(starWorldPos);
+
+    // 从星辰到相机的方向
+    const direction = new THREE.Vector3()
+      .subVectors(this.camera.position, starWorldPos)
+      .normalize();
+
+    // 特写相机位置
+    this.focusedCameraPos.copy(starWorldPos).add(direction.multiplyScalar(15));
+  }
+
+  exitFocus() {
+    this.isFocused = false;
+    this.focusedStar = null;
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
 
     const time = Date.now() * 0.0001;
 
-    // 平滑相机移动（视差效果）
-    this.camera.position.x += (this.targetCameraPos.x - this.camera.position.x) * 0.05;
-    this.camera.position.y += (this.targetCameraPos.y - this.camera.position.y) * 0.05;
+    // 特写模式相机控制
+    if (this.isFocused && this.focusedStar) {
+      // 更新特写位置（星辰可能在移动）
+      const starWorldPos = new THREE.Vector3();
+      this.focusedStar.group.getWorldPosition(starWorldPos);
 
-    // 平滑缩放
-    const targetZ = this.observeDistance;
-    this.camera.position.z += (targetZ - this.camera.position.z) * 0.1;
+      const direction = new THREE.Vector3()
+        .subVectors(this.camera.position, starWorldPos)
+        .normalize();
 
-    // 背景星辰缓慢旋转
+      this.focusedCameraPos.copy(starWorldPos).add(direction.multiplyScalar(15));
+
+      // 平滑移动到特写位置
+      this.camera.position.lerp(this.focusedCameraPos, 0.05);
+
+      // 让相机看向星辰
+      const lookAtTarget = new THREE.Vector3();
+      this.focusedStar.group.getWorldPosition(lookAtTarget);
+      this.camera.lookAt(lookAtTarget);
+    } else {
+      // 正常模式 - 视差效果
+      this.camera.position.x += (this.targetCameraPos.x - this.camera.position.x) * 0.05;
+      this.camera.position.y += (this.targetCameraPos.y - this.camera.position.y) * 0.05;
+
+      // 平滑缩放
+      const targetZ = this.observeDistance;
+      this.camera.position.z += (targetZ - this.camera.position.z) * 0.1;
+
+      // 重置相机朝向
+      this.camera.lookAt(0, 0, 0);
+    }
+
+    // 平滑场景旋转（左右滚动控制）
+    this.sceneRotation += (this.targetSceneRotation - this.sceneRotation) * 0.05;
+
+    // 应用场景旋转到背景星辰
     if (this.backgroundStars) {
-      this.backgroundStars.rotation.y = time * 0.05;
+      this.backgroundStars.rotation.y = time * 0.05 + this.sceneRotation;
       this.backgroundStars.rotation.x = time * 0.02;
     }
 
-    // 更新每个insight星辰
+    // 更新每个insight星辰，并应用场景旋转
     this.stars.forEach((star, index) => {
       star.update(time, this.camera, index);
+
+      // 应用场景旋转（绕Y轴）
+      if (!this.isFocused) {
+        const radius = Math.sqrt(star.position.x ** 2 + star.position.z ** 2);
+        const angle = Math.atan2(star.position.z, star.position.x) + this.sceneRotation;
+        star.group.position.x = star.position.x + Math.sin(time * star.driftSpeed.x + star.driftOffset.x) * 2;
+        star.group.position.z = star.position.z + Math.cos(time * star.driftSpeed.z + star.driftOffset.z) * 1.5;
+      }
     });
 
     this.renderer.render(this.scene, this.camera);

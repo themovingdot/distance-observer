@@ -21,6 +21,18 @@ export class InsightStar {
     this.floatSpeed = 0.3 + Math.random() * 0.3;
     this.floatAmplitude = 0.5 + Math.random() * 0.5;
 
+    // 空间漂移参数（缓慢的3D移动）
+    this.driftSpeed = {
+      x: (Math.random() - 0.5) * 0.1,
+      y: (Math.random() - 0.5) * 0.1,
+      z: (Math.random() - 0.5) * 0.1
+    };
+    this.driftOffset = {
+      x: Math.random() * Math.PI * 2,
+      y: Math.random() * Math.PI * 2,
+      z: Math.random() * Math.PI * 2
+    };
+
     this.init();
   }
 
@@ -58,9 +70,9 @@ export class InsightStar {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
 
-    // 设置canvas大小
-    canvas.width = 512;
-    canvas.height = 256;
+    // 设置canvas大小 - 增大以支持更大的文字
+    canvas.width = 768;
+    canvas.height = 384;
 
     // 清空背景
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -70,24 +82,24 @@ export class InsightStar {
     context.roundRect(10, 10, canvas.width - 20, canvas.height - 20, 10);
     context.fill();
 
-    // 绘制文字
+    // 绘制文字 - 增大字号提高可读性
     context.fillStyle = '#ffffff';
-    context.font = 'bold 32px sans-serif';
+    context.font = 'bold 52px sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'top';
 
     // 标题
     const title = this.insight.title;
-    context.fillText(title, canvas.width / 2, 30);
+    context.fillText(title, canvas.width / 2, 40);
 
-    // 内容（小字）
-    context.font = '20px sans-serif';
-    context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    // 内容（稍大的字号）
+    context.font = '32px sans-serif';
+    context.fillStyle = 'rgba(255, 255, 255, 0.8)';
 
     const content = this.insight.content;
-    const maxWidth = canvas.width - 40;
-    const lineHeight = 28;
-    let y = 80;
+    const maxWidth = canvas.width - 60;
+    const lineHeight = 42;
+    let y = 120;
 
     // 简单的文字换行
     const words = content.split('');
@@ -120,8 +132,9 @@ export class InsightStar {
     });
 
     this.textSprite = new THREE.Sprite(spriteMaterial);
-    this.textSprite.scale.set(8, 4, 1);
-    this.textSprite.position.set(0, 2, 0);
+    // 增大精灵尺寸使文字更大更易读
+    this.textSprite.scale.set(12, 6, 1);
+    this.textSprite.position.set(0, 2.5, 0);
 
     this.group.add(this.textSprite);
   }
@@ -162,9 +175,14 @@ export class InsightStar {
     this.group.rotation.y += this.rotationSpeed.y;
     this.group.rotation.z += this.rotationSpeed.z;
 
-    // 漂浮效果
-    const floatY = Math.sin(time * this.floatSpeed + this.floatOffset) * this.floatAmplitude;
-    this.group.position.y = this.position.y + floatY;
+    // 3D空间缓慢漂移（像在太空中漂浮）
+    const driftX = Math.sin(time * this.driftSpeed.x + this.driftOffset.x) * 2;
+    const driftY = Math.sin(time * this.floatSpeed + this.floatOffset) * this.floatAmplitude;
+    const driftZ = Math.cos(time * this.driftSpeed.z + this.driftOffset.z) * 1.5;
+
+    this.group.position.x = this.position.x + driftX;
+    this.group.position.y = this.position.y + driftY;
+    this.group.position.z = this.position.z + driftZ;
 
     // 光晕呼吸效果
     const pulse = Math.sin(time * 2 + index) * 0.1 + 0.9;
