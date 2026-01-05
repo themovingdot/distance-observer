@@ -83,6 +83,71 @@ npm run build
 npm run preview
 ```
 
+## 部署到 Vercel
+
+### 一键部署
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/distance-observer)
+
+### 手动部署
+
+1. **安装 Vercel CLI**
+
+```bash
+npm install -g vercel
+```
+
+2. **登录 Vercel**
+
+```bash
+vercel login
+```
+
+3. **部署项目**
+
+在项目根目录运行：
+
+```bash
+vercel
+```
+
+首次部署时，Vercel 会询问一些配置问题：
+- Project name: `distance-observer` (或自定义名称)
+- Directory: `./` (保持默认)
+- Build command: `npm run build` (已自动配置)
+- Output directory: `dist` (已自动配置)
+
+4. **生产环境部署**
+
+```bash
+vercel --prod
+```
+
+### 通过 Git 自动部署
+
+1. 将代码推送到 GitHub/GitLab/Bitbucket
+2. 访问 [Vercel Dashboard](https://vercel.com/dashboard)
+3. 点击 "Import Project"
+4. 选择你的仓库
+5. Vercel 会自动检测到 Vite 项目并使用正确的配置
+6. 点击 "Deploy"
+
+之后，每次推送到主分支都会自动触发部署。
+
+### 环境变量（可选）
+
+如果需要配置环境变量，在 Vercel Dashboard 的项目设置中添加：
+
+- Project Settings → Environment Variables
+
+### 自定义域名
+
+在 Vercel Dashboard 中：
+1. 进入项目设置
+2. 选择 "Domains"
+3. 添加你的自定义域名
+4. 按照提示配置 DNS
+
 ## 项目结构
 
 ```
